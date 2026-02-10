@@ -1,0 +1,8 @@
+python-dotenv
+openai
+gspread
+google-auth
+flask
+gunicorn
+pandas
+openpyxl
