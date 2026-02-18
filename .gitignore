@@ -1,7 +1,3 @@
-# Environment & Secrets
-.env
-credentials.json
-
 # Logs
 send_log.csv
 
