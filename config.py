@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # SMTP
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SENDER_NAME = os.getenv("SENDER_NAME", "")
@@ -27,6 +27,22 @@ DELAY_BETWEEN_BATCHES = int(os.getenv("DELAY_BETWEEN_BATCHES", "60"))
 
 # Email context
 EMAIL_PURPOSE = os.getenv("EMAIL_PURPOSE", "")
+
+# Multiple sender accounts (Hostinger)
+SENDER_ACCOUNTS = [
+    {"email": "Adil@avanienterprises.in", "password": "AdilAvani@23", "name": "Adil"},
+    {"email": "Vansh@avanienterprises.in", "password": "AvaniVansh@312", "name": "Vansh"},
+    {"email": "Farhan@avanienterprises.in", "password": "AvaniFarhan@91", "name": "Farhan"},
+    {"email": "Nitika@avanienterprises.in", "password": "AvaniNitika@89", "name": "Nitika"},
+]
+
+
+def get_sender_account(email):
+    """Look up a sender account by email address."""
+    for account in SENDER_ACCOUNTS:
+        if account["email"].lower() == email.lower():
+            return account
+    return None
 
 # Paths — support both file and env-var for credentials
 _BASE_DIR = os.path.dirname(__file__)
@@ -61,8 +77,8 @@ def reload():
 
     load_dotenv(override=True)
 
-    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
     SMTP_EMAIL = os.getenv("SMTP_EMAIL")
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
     SENDER_NAME = os.getenv("SENDER_NAME", "")

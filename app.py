@@ -40,7 +40,7 @@ send_lock = threading.Lock()
 uploaded_recipients = []
 
 
-def _send_worker(recipients):
+def _send_worker(recipients, sender_email=None, sender_password=None, sender_name=None):
     """Background worker that sends emails in batches."""
     global send_state
 
@@ -70,7 +70,7 @@ def _send_worker(recipients):
             total_batches = (total + batch_size - 1) // batch_size
             send_state["status_message"] = f"Batch {batch_num}/{total_batches}"
 
-            mailer = Mailer()
+            mailer = Mailer(sender_email=sender_email, sender_password=sender_password, sender_name=sender_name)
             try:
                 send_state["status_message"] = f"Connecting to SMTP server..."
                 mailer.connect()
@@ -174,6 +174,13 @@ def parse_excel_data(file_content):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/senders")
+def api_senders():
+    """Return available sender accounts (email + name only, no passwords)."""
+    senders = [{"email": a["email"], "name": a["name"]} for a in config.SENDER_ACCOUNTS]
+    return jsonify({"ok": True, "senders": senders})
 
 
 @app.route("/api/recipients")
@@ -322,9 +329,23 @@ def api_send():
     try:
         config.reload()
         
-        # Check request body for source preference
+        # Check request body for source preference and sender selection
         data = request.json or {}
         source = data.get('source', 'auto')  # 'auto', 'uploaded', 'sheets'
+        selected_sender = data.get('sender_email', '')
+        
+        # Look up sender credentials
+        sender_email = None
+        sender_password = None
+        sender_name = None
+        if selected_sender:
+            account = config.get_sender_account(selected_sender)
+            if account:
+                sender_email = account["email"]
+                sender_password = account["password"]
+                sender_name = account["name"]
+            else:
+                return jsonify({"ok": False, "error": f"Unknown sender: {selected_sender}"}), 400
         
         if source == 'sheets':
             recipients = get_recipients()
@@ -342,9 +363,14 @@ def api_send():
         if not pending:
             return jsonify({"ok": False, "error": "No pending recipients. All emails already sent."})
 
-        thread = threading.Thread(target=_send_worker, args=(pending,), daemon=True)
+        thread = threading.Thread(
+            target=_send_worker,
+            args=(pending,),
+            kwargs={"sender_email": sender_email, "sender_password": sender_password, "sender_name": sender_name},
+            daemon=True
+        )
         thread.start()
-        return jsonify({"ok": True, "pending": len(pending)})
+        return jsonify({"ok": True, "pending": len(pending), "sender": sender_email or config.SMTP_EMAIL})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 

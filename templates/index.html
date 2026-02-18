@@ -801,6 +801,52 @@
       opacity: 1;
     }
 
+    /* Sender select */
+    .sender-select {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 18px;
+      padding-right: 40px;
+    }
+
+    .sender-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .sender-select option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      padding: 10px;
+    }
+
+    .sender-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--accent-hover);
+    }
+
     /* Footer */
     .footer {
       text-align: center;
@@ -837,7 +883,7 @@
       <div class="logo-icon">✉️</div>
       <div class="logo-text">
         <h1>AI Email Agent</h1>
-        <span>Gmail • OpenAI GPT • Multi-Source</span>
+        <span>Hostinger • OpenAI GPT • Multi-Source</span>
       </div>
     </div>
     <div class="header-status">
@@ -971,6 +1017,23 @@
         </div>
       </div>
 
+      <!-- Sender Selection -->
+      <div class="card">
+        <div class="card-title">
+          <span>📧 Select Sender</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Send emails from</label>
+          <select class="sender-select" id="senderSelect">
+            <option value="">Loading senders...</option>
+          </select>
+          <div class="sender-info" id="senderInfo" style="display: none;">
+            <span>✉️</span>
+            <span id="senderInfoText">No sender selected</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Send Control -->
       <div class="card">
         <div class="card-title">
@@ -1042,6 +1105,7 @@
     let recipients = [];
     let manualRecipients = [];
     let currentSource = null;
+    let availableSenders = [];
     let pollInterval = null;
 
     // ── Tab Switching ────────────────────────────────────────────────────────
@@ -1356,13 +1420,19 @@
         return;
       }
 
+      const senderEmail = document.getElementById('senderSelect').value;
+      if (!senderEmail) {
+        showError('Please select a sender email before sending.');
+        return;
+      }
+
       try {
         const data = await api('/api/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: 'uploaded' })
+          body: JSON.stringify({ source: 'uploaded', sender_email: senderEmail })
         });
-        showSuccess(`Started sending to ${data.pending} recipients!`);
+        showSuccess(`Started sending to ${data.pending} recipients from ${data.sender}!`);
         document.getElementById('btnSend').disabled = true;
         document.getElementById('btnStop').disabled = false;
         startPolling();
@@ -1481,7 +1551,38 @@
       return d.innerHTML;
     }
 
-    // Auto-load log on page load
+    // ── Load Senders ─────────────────────────────────────────────────────────
+
+    async function loadSenders() {
+      try {
+        const res = await fetch('/api/senders');
+        const data = await res.json();
+        if (data.ok && data.senders.length > 0) {
+          availableSenders = data.senders;
+          const select = document.getElementById('senderSelect');
+          select.innerHTML = '<option value="">-- Choose a sender --</option>';
+          data.senders.forEach(s => {
+            select.innerHTML += `<option value="${esc(s.email)}">${esc(s.name)} (${esc(s.email)})</option>`;
+          });
+          select.addEventListener('change', function() {
+            const info = document.getElementById('senderInfo');
+            const infoText = document.getElementById('senderInfoText');
+            if (this.value) {
+              const sender = availableSenders.find(s => s.email === this.value);
+              infoText.textContent = `Emails will be sent from: ${sender.name} <${sender.email}>`;
+              info.style.display = 'flex';
+            } else {
+              info.style.display = 'none';
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load senders:', e);
+      }
+    }
+
+    // Auto-load on page load
+    loadSenders();
     loadLog();
   </script>
 </body>
